@@ -24,16 +24,16 @@ function init() {
 	container = document.createElement( 'div' );
 	document.body.appendChild( container );
 
+	scene = new THREE.Scene();
+	scene.background = new THREE.Color( 0x000000 );
+	scene.fog = new THREE.Fog( 0xa0a0a0, 200, 1000 );
+
 	camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 2000 );
 	camera.position.set( 100, 200, 300 );
 
 	controls = new THREE.OrbitControls( camera );
 	controls.target.set( 0, 100, 100 );
 	controls.update();
-
-	scene = new THREE.Scene();
-	scene.background = new THREE.Color( 0x000000 );
-	scene.fog = new THREE.Fog( 0xa0a0a0, 200, 1000 );
 
 	light = new THREE.HemisphereLight( 0xffffff, 0x444444 );
 	light.position.set( 0, 200, 0 );
@@ -60,20 +60,43 @@ function init() {
 	grid.material.opacity = 0.2;
 	grid.material.transparent = true;
 	scene.add( grid );
+	var  objects=[];
 
+	var materialArray = [];
+	materialArray.push(new THREE.MeshBasicMaterial( { map: THREE.ImageUtils.loadTexture( './materials/Blue.mat' ) }));
+
+	var houseMaterials = new THREE.MeshLambertMaterial(materialArray);
 	// model
 	var loader = new THREE.FBXLoader();
 	loader.load( './models/fbx/zonghe.fbx', function ( object ) {
-		console.log(object);
+
+		console.log(object)
+
 		object.scale.multiplyScalar(2);
+		objects.push(object);
+		// console.log(houseMaterials)
+		// house = new THREE.Mesh(object, houseMaterials);
+
+		// if you want to add your custom material
+		var materialObj = new THREE.MeshLambertMaterial({
+			// map: THREE.ImageUtils.loadTexture( './materials/Blue.mat' )
+			color: (0x188eee),
+			transparent: true,
+			opacity: 0.5
+		});
+		object.traverse(function(child) {
+			if (child instanceof THREE.Mesh) {
+				child.material = materialObj;
+			}
+		});
 		scene.add( object );
 	} );
 
-	for(var i = 0; i < 12; i++) {
+	for(var i = 1; i < 13; i++) {
 
 		loader.load( `./models/fbx/student${i}.FBX`, function ( object ) {
-			console.log(object);
 			object.scale.multiplyScalar(2);
+			objects.push(object);
 			scene.add( object );
 		} );
 
@@ -89,10 +112,9 @@ function init() {
 
 	}*/
 
-	for(var i = 0; i < 3; i++) {
+	for(var i = 1; i < 3; i++) {
 
 		loader.load( `./models/fbx/shitang${i}.FBX`, function ( object ) {
-			console.log(object);
 			object.scale.multiplyScalar(2);
 			scene.add( object );
 		} );
@@ -110,6 +132,67 @@ function init() {
 	// stats
 	stats = new Stats();
 	container.appendChild( stats.dom );
+
+	var raycaster = new THREE.Raycaster();
+
+	var mouse = new THREE.Vector2();
+
+	var SELECTED;
+
+	document.onmousemove = function(e) {
+		//鼠标点的拾取-当鼠标点击效果时，放在这里
+		mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;//threejs坐标点的标准化
+		mouse.y = - ( event.clientY / window.innerHeight) * 2 + 1;
+
+		raycaster.setFromCamera( mouse, camera );
+		var intersects = raycaster.intersectObjects( objects, true );
+		//拾取物体数大于0时
+		if ( intersects.length > 0 ) {
+
+			//获取第一个物体
+			if (SELECTED != intersects[0].object) {
+				//鼠标的变换
+				document.body.style.cursor='pointer';
+				/*intersects[ 0 ].object.material.transparent=true;//透明度的变化
+				 intersects[ 0 ].object.material.opacity=0.5;*/
+				if (SELECTED) SELECTED.material.color.setHex(SELECTED.currentHex);
+				SELECTED = intersects[0].object;
+				SELECTED.currentHex = SELECTED.material.color.getHex();//记录当前选择的颜色
+				//改变物体的颜色(红色)
+				SELECTED.material.color.set( 0x188eee );
+			}
+		} else {
+			document.body.style.cursor= 'auto';
+			if (SELECTED) SELECTED.material.color.set(SELECTED.currentHex);//恢复选择前的默认颜色
+			SELECTED = null;
+		}
+
+	};
+	function onMouseClick( event ) {
+
+		//通过鼠标点击的位置计算出raycaster所需要的点的位置，以屏幕中心为原点，值的范围为-1到1.
+
+		mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+		mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+		// 通过鼠标点的位置和当前相机的矩阵计算出raycaster
+		raycaster.setFromCamera( mouse, camera );
+
+		// 获取raycaster直线和所有模型相交的数组集合
+		var intersects = raycaster.intersectObjects(  objects, true  );
+
+		console.log(intersects);
+
+		//将所有的相交的模型的颜色设置为红色，如果只需要将第一个触发事件，那就数组的第一个模型改变颜色即可
+		for ( var i = 0; i < intersects.length; i++ ) {
+
+			intersects[ i ].object.material.color.set( 0x188333 );
+
+		}
+
+	}
+
+	window.addEventListener( 'click', onMouseClick, false );
 
 }
 
